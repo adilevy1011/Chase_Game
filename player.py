@@ -15,10 +15,6 @@ class player:
         self.dy = 0
         
     def update(self,right,left,bottom,top):
-        
-       
-        
-        
         length = math.hypot(self.dx, self.dy)
 
         if length != 0:
