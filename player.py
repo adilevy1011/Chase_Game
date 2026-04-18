@@ -1,10 +1,15 @@
 import turtle
 import math
+import random
 class player:
     
     def __init__(self):
         self.turt = turtle.Turtle()
         self.turt.penup()
+        # colors = ["red", "blue", "green", "purple", "orange", "yellow"]
+        # shapes = ["arrow", "classic", "triangle", "turtle"]
+        # self.turt.color(random.choice(colors))
+        # self.turt.shape(random.choice(shapes))
         self.vx = 0
         self.vy = 0
         

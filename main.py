@@ -12,7 +12,7 @@ from player import player
 player = player()
 pen = turtle.Turtle()
 bots : list[bot] = []
-
+BOTS_ON = True
 def init_game():
     
     global window 
@@ -34,17 +34,14 @@ def init_game():
     global top    
     top =  screen_height / 2 #232
     
-    
     pen.hideturtle()
     pen.penup()
 
     # Position the label
     pen.goto(left, top-10)
-
-    
-    
-    window.listen()
-    window.onkey(spawn_bot, "Up")
+    if BOTS_ON:
+        window.listen()
+        window.onkey(spawn_bot, "Up")
     
 def add_gameover_screen():
     root = tk.Tk()
