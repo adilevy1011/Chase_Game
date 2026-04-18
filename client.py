@@ -133,6 +133,8 @@ def send_input():
 
 
 # connect to server
-sio.connect("https://between-distribution-inf-might.trycloudflare.com")
+while sys.argv[1] == None:
+    input("Please enter tunnel url: (Ex: majority-howard-cent-speaking.trycloudflare.com)")
+sio.connect(sys.argv[1])
 
 turtle.mainloop()
