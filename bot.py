@@ -4,7 +4,8 @@ import math
 import time
 
 class bot:
-    
+    CALM_SPEED = 1.5
+    RAGE_SPEED = 3
     def __init__(self):
         self.turt = turtle.Turtle()
         self.turt.color("grey")
@@ -12,7 +13,7 @@ class bot:
         self.rage = False
         self.angle = random.uniform(0, 360)
         self.turn_speed = 2
-        self.speed = 0.75
+        self.speed = self.CALM_SPEED
         self.time_of_rage = time.time()
         self.time_wait = random.randint(1,15)
     
@@ -52,7 +53,7 @@ class bot:
     def rage_on(self):
         self.rage = True
         self.turt.color('red')
-        self.speed = 1.25
+        self.speed = self.RAGE_SPEED
         self.time_of_rage = time.time()
         self.time_wait = random.randint(1,15)
 
@@ -60,7 +61,7 @@ class bot:
     def rage_off(self):
         self.rage = False
         self.turt.color('grey')
-        self.speed = 0.75
+        self.speed = self.CALM_SPEED
         self.time_of_rage = time.time()
         self.time_wait = random.randint(1,15)
     
