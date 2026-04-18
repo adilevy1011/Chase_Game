@@ -1,0 +1,98 @@
+import turtle
+import random 
+import math
+import time
+
+class bot:
+    
+    def __init__(self):
+        self.turt = turtle.Turtle()
+        self.turt.color("grey")
+        self.turt.penup()
+        self.rage = False
+        self.angle = random.uniform(0, 360)
+        self.turn_speed = 2
+        self.speed = 0.75
+        self.time_of_rage = time.time()
+        self.time_wait = random.randint(1,15)
+    
+    def step(self, X: float, Y:float,screen_height,screen_width):
+        if self.rage: 
+            angle = self.find_angle_to_player(X,Y)
+            self.turt.left(angle)
+            self.turt.forward(self.speed)
+        else:
+            self.move(screen_height,screen_width)
+        self.update()
+    
+    def move(self,screen_height,screen_width):
+        
+        x, y = self.turt.pos()
+        
+        x = max(-screen_width/2, min(screen_width/2, x))
+        y = max(-screen_height/2, min(screen_height/2, y))
+        
+        
+        if x <= -screen_width/2 or x >= screen_width/2 or y >= screen_height/2 or y <= -screen_height/2:
+            if x <= -screen_width/2 or x >= screen_width/2:
+                self.angle = 180 -self.angle
+            if y >= screen_height/2 or y <= -screen_height/2:
+                self.angle = -self.angle
+        else: self.angle += random.uniform(-self.turn_speed, self.turn_speed)
+        
+        rad = math.radians(self.angle)
+
+        self.vx = math.cos(rad) * self.speed
+        self.vy = math.sin(rad) * self.speed
+
+        
+        self.turt.seth(self.angle)
+        self.turt.goto(x + self.vx, y + self.vy)
+        
+    def rage_on(self):
+        self.rage = True
+        self.turt.color('red')
+        self.speed = 1.25
+        self.time_of_rage = time.time()
+        self.time_wait = random.randint(1,15)
+
+    
+    def rage_off(self):
+        self.rage = False
+        self.turt.color('grey')
+        self.speed = 0.75
+        self.time_of_rage = time.time()
+        self.time_wait = random.randint(1,15)
+    
+    def update(self):
+        if self.rage and time.time() - self.time_of_rage > self.time_wait:
+            self.rage_off()
+        elif not self.rage and time.time()- self.time_of_rage > self.time_wait:
+            self.rage_on() #add update method in main
+    def find_angle_to_player(self, posX: float, posY:float):
+        xcor,ycor = self.turt.pos()
+        dx = posX - xcor
+        dy = posY - ycor
+        
+        target_angle = math.degrees(math.atan2(dy, dx))
+        current_angle = self.turt.heading()
+        
+        angle = target_angle - current_angle
+        angle = (angle + 180) % 360 - 180
+        
+        return angle
+
+
+        
+        
+            
+    
+        
+    
+        
+        
+    
+        
+        
+    
+        
