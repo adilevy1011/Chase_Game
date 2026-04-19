@@ -18,7 +18,7 @@ latest_state = {}
 running = True
 
 local_player = player()
-local_player.turt.color("red")
+local_player.turt.color("blue")
 
 keys = {
     "w": False,
