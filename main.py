@@ -6,12 +6,16 @@ from bot import bot
 import math
 import random
 from player import player
+import os
 
 
-
-player = player()
+#==========
 pen = turtle.Turtle()
+player = player()  
 bots : list[bot] = []
+bot_count = 0
+#===========
+
 BOTS_ON = True
 def init_game():
     
@@ -49,14 +53,20 @@ def add_gameover_screen():
     root.config(bg='red')
     label = tk.Label(root,text = "Game Over",font=("Arial", 40, "bold"),bg='red')
     label.place(x=200,y=200,width=400,height=100)
-    killerLabel = tk.Label(root,text=f"Killed by bot number {killer}",font=("Arial", 15),bg='red')
+    killerLabel = tk.Label(root,text=f"Killed by bot number {killer.ID}",font=("Arial", 15),bg='red')
     killerLabel.pack(expand=True)
+    restart_btn = tk.Button(text="Restart game",command=restart_game)
+    restart_btn.place(x=325,y=450,width=100,height=35)
     qt_btn = tk.Button(text="Quit",command=sys.exit)
     qt_btn.place(x=350,y=500,width=50,height=35)
     root.mainloop()
-
+def restart_game():
+    python = sys.executable
+    os.execl(python, python, *sys.argv)
 def spawn_bot():
-    b = bot()
+    global bot_count
+    bot_count = bot_count + 1
+    b = bot(bot_count)
     bots.append(b)
     b.turt.goto(random.randint(-300,300),random.randint(-300,300))
 #When player DIES and NOT when Escape key is pressed 
@@ -85,9 +95,18 @@ def game_loop():
         bt.step(turX,turY,screen_height,screen_width)
         bx,by = bt.turt.pos()
         if bt.rage and get_distance(bx,by,turX,turY) < 5:
-            global killer
-            killer = index + 1
-            terminate_game()
+            angle = player.find_angle_to_player_view(bx,by)
+            #angle = (angle + 180) % 360 - 180
+            print("angle:", angle, "heading:", player.turt.heading())
+            if -90 < angle < 90:
+                bt.turt.hideturtle()
+                bots.pop(index)
+            else:
+                global killer
+                killer = bt
+                terminate_game()
+            
+        
             
     #Close program
     if keyboard.is_pressed('Escape'):
@@ -102,12 +121,13 @@ def game_loop():
     window.update()
     window.ontimer(game_loop, 16) 
     
-
-if __name__ == "__main__":
+def start_game():
     init_game()
     game_loop()
     turtle.mainloop()
 
+if __name__ == "__main__":
+    start_game()
 
 
     

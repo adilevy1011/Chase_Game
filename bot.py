@@ -2,14 +2,14 @@ import turtle
 import random 
 import math
 import time
-
-class bot:
+from sprite import sprite
+class bot(sprite):
     CALM_SPEED = 1.5
     RAGE_SPEED = 3
-    def __init__(self):
-        self.turt = turtle.Turtle()
+    def __init__(self, id):
+        super().__init__()
+        self.ID = id
         self.turt.color("grey")
-        self.turt.penup()
         self.rage = False
         self.angle = random.uniform(0, 360)
         self.turn_speed = 2
@@ -19,7 +19,7 @@ class bot:
     
     def step(self, X: float, Y:float,screen_height,screen_width):
         if self.rage: 
-            angle = self.find_angle_to_player(X,Y)
+            angle = super().find_angle_to(X,Y)
             self.turt.left(angle)
             self.turt.forward(self.speed)
         else:
@@ -70,18 +70,7 @@ class bot:
             self.rage_off()
         elif not self.rage and time.time()- self.time_of_rage > self.time_wait:
             self.rage_on() #add update method in main
-    def find_angle_to_player(self, posX: float, posY:float):
-        xcor,ycor = self.turt.pos()
-        dx = posX - xcor
-        dy = posY - ycor
-        
-        target_angle = math.degrees(math.atan2(dy, dx))
-        current_angle = self.turt.heading()
-        
-        angle = target_angle - current_angle
-        angle = (angle + 180) % 360 - 180
-        
-        return angle
+    
 
 
         
