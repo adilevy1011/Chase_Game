@@ -7,17 +7,22 @@ import math
 import random
 from player import player
 import os
-
+import menu
 
 #==========
-pen = turtle.Turtle()
-player = player()  
 bots : list[bot] = []
-bot_count = 0
 #===========
 
 BOTS_ON = True
 def init_game():
+    
+    global pen 
+    pen = turtle.Turtle()
+    global player 
+    player = player()  
+    
+    global bot_count
+    bot_count = 0
     
     global window 
     window = turtle.Screen()
@@ -46,9 +51,10 @@ def init_game():
     if BOTS_ON:
         window.listen()
         window.onkey(spawn_bot, "Up")
-    
+
 def add_gameover_screen():
     root = tk.Tk()
+    root.title("Game Over")
     root.geometry("800x600")
     root.config(bg='red')
     label = tk.Label(root,text = "Game Over",font=("Arial", 40, "bold"),bg='red')
@@ -57,12 +63,13 @@ def add_gameover_screen():
     killerLabel.pack(expand=True)
     restart_btn = tk.Button(text="Restart game",command=restart_game)
     restart_btn.place(x=325,y=450,width=100,height=35)
-    qt_btn = tk.Button(text="Quit",command=sys.exit)
-    qt_btn.place(x=350,y=500,width=50,height=35)
+    qt_btn = tk.Button(text="Back to menu",command=menu.go_to_menu)
+    qt_btn.place(x=325,y=500,width=100,height=35)
     root.mainloop()
 def restart_game():
     python = sys.executable
-    os.execl(python, python, *sys.argv)
+    os.execl(python, python, "main.py")
+
 def spawn_bot():
     global bot_count
     bot_count = bot_count + 1
@@ -112,7 +119,8 @@ def game_loop():
     if keyboard.is_pressed('Escape'):
         game_on = False
         window.bye()
-        sys.exit()
+        menu.go_to_menu()
+        
         
     # Write the label text
     pen.clear()

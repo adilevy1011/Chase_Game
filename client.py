@@ -4,21 +4,46 @@ import math
 from player import player
 import sys
 import turtle
+from tkinter import messagebox
+import menu
 
 sio = socketio.Client()
 
-window = turtle.Screen()
-window.tracer(0)
-
 my_id = None
 
-players = {}
-latest_state = {}
+def init_game():
+    global window
+    window = turtle.Screen()
+    window.title("Chase Game Multiplayer")
+    window.tracer(0)
+    window.onkeypress(press_w, "w")
+    window.onkeyrelease(release_w, "w")
 
-running = True
+    window.onkeypress(press_a, "a")
+    window.onkeyrelease(release_a, "a")
 
-local_player = player()
-local_player.turt.color("blue")
+    window.onkeypress(press_s, "s")
+    window.onkeyrelease(release_s, "s")
+
+    window.onkeypress(press_d, "d")
+    window.onkeyrelease(release_d, "d")
+
+    window.onkeypress(quit_game, "Escape")
+
+    window.listen()
+    global players
+    players = {}
+    global latest_state
+    latest_state = {}
+
+    global running
+    running = True
+
+    global local_player
+    local_player = player()
+    local_player.turt.color("blue")
+
+
 
 keys = {
     "w": False,
@@ -44,6 +69,7 @@ def release_d(): keys["d"] = False
 
 def quit_game():
     global running
+    global window
     print("Disconnecting...")
     
     running = False
@@ -51,24 +77,10 @@ def quit_game():
         sio.disconnect()
     except:
         pass
-    window.bye()
-    sys.exit()
+    #window.bye()
+    menu.go_to_menu()
 
-window.onkeypress(press_w, "w")
-window.onkeyrelease(release_w, "w")
 
-window.onkeypress(press_a, "a")
-window.onkeyrelease(release_a, "a")
-
-window.onkeypress(press_s, "s")
-window.onkeyrelease(release_s, "s")
-
-window.onkeypress(press_d, "d")
-window.onkeyrelease(release_d, "d")
-
-window.onkeypress(quit_game, "Escape")
-
-window.listen()
 
 @sio.event
 def connect():
@@ -129,12 +141,20 @@ def send_input():
 
     window.ontimer(send_input, 50)
     
-
-
-
-# connect to server
-while sys.argv[1] == None:
-    input("Please enter tunnel url: (Ex: majority-howard-cent-speaking.trycloudflare.com)")
-sio.connect(sys.argv[1])
-
-turtle.mainloop()
+def connect_to_server():
+    # connect to server
+    try:
+        if len(sys.argv) <= 1:
+            sio.connect("http://localhost:5555")
+        else: 
+            sio.connect(sys.argv[1])
+    except socketio.exceptions.ConnectionError:
+        window.bye()
+        messagebox.showerror("Connection Error", "Couldn't connect to server")
+        menu.go_to_menu()
+def run_game():
+    connect_to_server()
+    turtle.mainloop()
+    
+if __name__=="__main__":
+    run_game()

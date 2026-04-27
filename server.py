@@ -39,7 +39,6 @@ controller_page = """
 # store all player positions
 
 players = {}
-#bots = []
 
 @app.route("/")
 def index():
@@ -106,7 +105,7 @@ def update_player(player, acc, friction, right, left, top, bottom):
 def game_loop():
     while True:
         for player in list(players.values()):
-            update_player(player, acc=1, friction=0.9, right=372,left=-380,top=320,bottom=-315)
+            update_player(player, acc=1.5, friction=0.9, right=372,left=-380,top=320,bottom=-315)
         socketio.emit("state", players)
         socketio.sleep(0.016)
         
