@@ -117,7 +117,6 @@ def game_loop():
             
     #Close program
     if keyboard.is_pressed('Escape'):
-        game_on = False
         window.bye()
         menu.go_to_menu()
         
