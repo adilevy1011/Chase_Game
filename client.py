@@ -7,6 +7,7 @@ import turtle
 from tkinter import messagebox, simpledialog
 import menu
 import threading
+import queue
 
 sio = socketio.Client()
 
@@ -20,8 +21,14 @@ latest_state = {}
 local_player = None
 already_joined = False
 previous_player_count = 0
-# Lock for thread-safe access to shared state
 state_lock = threading.Lock()
+
+# Thread-safe queue for events from SocketIO thread
+event_queue = queue.Queue()
+
+# Flags to track if loops are running
+render_loop_running = False
+send_input_running = False
 
 def init_game():
     global window, instruction_turtle, players, latest_state, running, local_player
@@ -30,7 +37,6 @@ def init_game():
     window.title("Chase Game Multiplayer")
     window.tracer(0)
     
-    # Setup keyboard input
     window.setup(width=800, height=600)
     window.listen()
     
@@ -44,7 +50,6 @@ def init_game():
     window.onkeyrelease(release_d, "d")
     window.onkeypress(quit_game, "Escape")
     
-    # Give focus to window
     window.update()
     window.getcanvas().focus()
 
@@ -55,7 +60,6 @@ def init_game():
     local_player = player()
     local_player.turt.color("blue")
 
-    # Display instructions
     instructions = turtle.Turtle()
     instructions.hideturtle()
     instructions.speed(0)
@@ -63,6 +67,9 @@ def init_game():
     instructions.goto(0, 280)
     instructions.write("Hold on, waiting for room...", align="center", font=("Arial", 12, "normal"))
     instruction_turtle = instructions
+    
+    # Start checking event queue
+    check_event_queue()
 
 
 keys = {
@@ -110,33 +117,44 @@ def quit_game():
     menu.go_to_menu()
 
 
+def check_event_queue():
+    """Check if there are any events from SocketIO thread to process"""
+    try:
+        while True:
+            event_name, event_data = event_queue.get_nowait()
+            
+            if event_name == "prompt_for_room":
+                prompt_for_room()
+            elif event_name == "rejoin_room":
+                rejoin_room()
+    except queue.Empty:
+        pass
+    
+    # Check again in 10ms
+    window.ontimer(check_event_queue, 10)
+
+
 @sio.event
 def connect():
     print("Connected to server")
-    # Schedule the prompt on the main thread after a small delay
+    # Queue the prompt instead of calling it directly
     if not already_joined:
-        window.ontimer(prompt_for_room, 100)
+        event_queue.put(("prompt_for_room", None))
     else:
         print("Already in a room, skipping prompt")
-        # Re-join the room after reconnection
-        window.ontimer(rejoin_room, 100)
+        event_queue.put(("rejoin_room", None))
 
-def rejoin_room():
-    """Rejoin the current room after reconnection"""
-    global current_room
-    if current_room:
-        print(f"Rejoining room: {current_room}")
-        sio.emit("join_game", {"room": current_room})
 
 @sio.event
 def disconnect():
     """Handle unexpected disconnection"""
     print("Disconnected from server")
-    # Clear game state on disconnect
-    global players, latest_state, my_id
+    global players, latest_state, my_id, render_loop_running, send_input_running
     players = {}
     latest_state = {}
     my_id = None
+    render_loop_running = False
+    send_input_running = False
 
 
 def prompt_for_room():
@@ -154,11 +172,9 @@ def prompt_for_room():
             join_game_room(room_name.strip())
             already_joined = True
         else:
-            # User cancelled
             quit_game()
     except Exception as e:
         print(f"Error in prompt_for_room: {e}")
-        # Fallback: ask through console
         room_name = input("Enter room name: ")
         if room_name:
             join_game_room(room_name.strip())
@@ -167,15 +183,21 @@ def prompt_for_room():
             quit_game()
 
 
+def rejoin_room():
+    """Rejoin the current room after reconnection"""
+    global current_room
+    if current_room:
+        print(f"Rejoining room: {current_room}")
+        sio.emit("join_game", {"room": current_room})
+
+
 def join_game_room(room_name):
     """Request to join a specific game room"""
     global current_room
     current_room = room_name
     print(f"Attempting to join room: {room_name}")
     sio.emit("join_game", {"room": room_name})
-    send_input()
-    render_loop()
-
+    # Don't start loops yet - wait for joined_game confirmation
 
 @sio.event
 def your_id(data):
@@ -183,30 +205,40 @@ def your_id(data):
     my_id = data
     print("My ID:", my_id)
 
-
 @sio.event
 def joined_game(data):
     """Confirmation that we joined a room"""
     global current_room, instruction_turtle, local_player, players, previous_player_count
+    global render_loop_running, send_input_running
+    
     current_room = data["room"]
     player_count = data["players"]
-    previous_player_count = player_count  # Initialize with first count
+    previous_player_count = player_count
     
     print(f"Successfully joined room: {data['room']}")
     print(f"Players in room: {player_count}")
     
-    # Clear the entire screen
-    window.clearscreen()
-    window.tracer(0)
+    # Only clear screen on first join, not on reconnection
+    first_join = not render_loop_running
     
-    # Reset players dictionary (clear old players)
-    players = {}
+    if first_join:
+        window.clearscreen()
+        window.tracer(0)
+        
+        # Reset players dictionary only on first join
+        players = {}
+        
+        # Create new local player only on first join
+        local_player = player()
+        local_player.turt.color("blue")
     
-    # Redraw the local player
-    local_player = player()
-    local_player.turt.color("blue")
+    # Always update the instruction display
+    if instruction_turtle:
+        try:
+            instruction_turtle.clear()
+        except:
+            pass
     
-    # Create new instruction turtle
     instructions = turtle.Turtle()
     instructions.hideturtle()
     instructions.speed(0)
@@ -219,7 +251,7 @@ def joined_game(data):
     )
     instruction_turtle = instructions
     
-    # RE-ESTABLISH KEYBOARD BINDINGS after clearscreen
+    # Re-establish keyboard bindings
     window.listen()
     window.onkeypress(press_w, "w")
     window.onkeyrelease(release_w, "w")
@@ -231,20 +263,25 @@ def joined_game(data):
     window.onkeyrelease(release_d, "d")
     window.onkeypress(quit_game, "Escape")
     
-    # Re-focus window after dialog closes
     window.getcanvas().focus_set()
     window.listen()
-
+    
+    # NOW start the game loops (only if not already running)
+    if not render_loop_running:
+        render_loop_running = True
+        render_loop()
+    
+    if not send_input_running:
+        send_input_running = True
+        send_input()
 
 @sio.event
 def state(data):
     global latest_state, instruction_turtle, current_room, previous_player_count
     
-    # Use lock to safely update state
     with state_lock:
         latest_state = data.copy()
         
-        # Remove players that are no longer in the state
         for pid in list(players.keys()):
             if pid not in data:
                 try:
@@ -253,27 +290,28 @@ def state(data):
                 except:
                     pass
     
-    # Update player count if it changed
     current_player_count = len(data)
     if current_player_count != previous_player_count and instruction_turtle and current_room:
         previous_player_count = current_player_count
         
-        instruction_turtle.clear()
-        instruction_turtle.penup()
-        instruction_turtle.goto(0, 280)
-        instruction_turtle.write(
-            f"Room: {current_room} | Players: {current_player_count}", 
-            align="center", 
-            font=("Arial", 12, "normal")
-        )
+        try:
+            instruction_turtle.clear()
+            instruction_turtle.penup()
+            instruction_turtle.goto(0, 280)
+            instruction_turtle.write(
+                f"Room: {current_room} | Players: {current_player_count}", 
+                align="center", 
+                font=("Arial", 12, "normal")
+            )
+        except:
+            pass
 
 
 def render_loop():
-    if not running:
+    if not running or not render_loop_running:
         return
     
     try:
-        # Use lock to safely read state
         with state_lock:
             current_state = latest_state.copy()
         
@@ -281,7 +319,6 @@ def render_loop():
 
             for player_id, p in current_state.items():
                 try:
-                    # own player
                     if player_id == my_id:
                         t = local_player
                     else:
@@ -295,26 +332,24 @@ def render_loop():
                     if p["vx"] != 0 or p["vy"] != 0:
                         angle = math.degrees(math.atan2(p["vy"], p["vx"]))
                         t.turt.setheading(angle)
-                except:
-                    # Skip if turtle was deleted
+                except Exception as e:
                     pass
 
         window.update()
-    except:
-        # Skip this frame if there's an error
+    except Exception as e:
         pass
     
     window.ontimer(render_loop, 16)
 
  
 def send_input():
-    if not running:
+    if not running or not send_input_running:
         return
     
     if sio.connected and current_room is not None:
         sio.emit("input", keys.copy())
 
-    window.ontimer(send_input, 50)
+    window.ontimer(send_input, 30)
 
     
 def connect_to_server(tunnel_address):
@@ -323,16 +358,11 @@ def connect_to_server(tunnel_address):
         url = tunnel_address if tunnel_address else "http://localhost:5555"
         print(f"Attempting to connect to: {url}")
         
-        if tunnel_address == None:
-            sio.connect(
-                "http://localhost:5555",
-                transports=['websocket', 'polling']
-            )
-        else:
-            sio.connect(
-                tunnel_address,
-                transports=['websocket', 'polling']
-            )
+        sio.connect(
+            url,
+            transports=['websocket', 'polling'],  # Try websocket first, fallback to polling
+            wait_timeout=10
+        )
         
         print("Connected successfully!")
         
@@ -340,14 +370,9 @@ def connect_to_server(tunnel_address):
         print(f"Connection error: {e}")
         if window:
             window.bye()
-        messagebox.showerror("Connection Error", f"Couldn't connect to server:\n{str(e)}")
+        messagebox.showerror("Connection Error", f"Couldn't connect to server")
         menu.go_to_menu()
-    except Exception as e:
-        print(f"Unexpected error: {e}")
-        if window:
-            window.bye()
-        messagebox.showerror("Error", f"Unexpected error:\n{str(e)}")
-        menu.go_to_menu()
+
 
 def run_game(tunnel_address):
     init_game()

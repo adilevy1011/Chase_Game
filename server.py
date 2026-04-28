@@ -3,9 +3,27 @@ from flask import request
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from flask import Flask
 import math
+import logging
+import warnings
+
+# Suppress Werkzeug logging
+logging.getLogger('werkzeug').setLevel(logging.ERROR)
+warnings.filterwarnings('ignore')
 
 app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins="*")
+app.config['JSON_SORT_KEYS'] = False
+
+
+socketio = SocketIO(
+    app, 
+    cors_allowed_origins="*",
+    async_mode='threading',
+    transports=['websocket', 'polling'],  # Try websocket first, fallback to polling
+    ping_timeout=120,
+    ping_interval=25,
+    logger=False, 
+    engineio_logger=False
+)
 
 class game_room:
     def __init__(self, name):
@@ -127,15 +145,21 @@ def on_join_game(data):
     
     room = game_rooms[room_name]
     
-    # Add player to room
-    room.players[request.sid] = {
-        "x": 0,
-        "y": 0,
-        "vx": 0,
-        "vy": 0,
-        "dx": 0,
-        "dy": 0
-    }
+    # Check if player already exists in this room (reconnection)
+    if request.sid in room.players:
+        print(f"Player {request.sid} reconnecting to room: {room_name}")
+        # Don't reset position - keep existing player state
+    else:
+        # New player - create with default position
+        print(f"New player {request.sid} joining room: {room_name}")
+        room.players[request.sid] = {
+            "x": 0,
+            "y": 0,
+            "vx": 0,
+            "vy": 0,
+            "dx": 0,
+            "dy": 0
+        }
     
     # Track which room this player is in
     player_rooms[request.sid] = room_name
@@ -143,7 +167,6 @@ def on_join_game(data):
     # Join the SocketIO room (for broadcasting)
     join_room(room_name)
     
-    print(f"Player {request.sid} joined room: {room_name}")
     print(f"Room {room_name} now has {len(room.players)} players")
     
     # Send player their ID and room info
@@ -197,8 +220,12 @@ def on_disconnect():
     player_rooms.pop(request.sid, None)
 
 if __name__ == "__main__":
-    socketio.start_background_task(game_loop)
-    socketio.run(app, host="0.0.0.0", port=5555)
+    print("Starting server on port 5555...")
+    try:
+        socketio.start_background_task(game_loop)
+        socketio.run(app, host="0.0.0.0", port=5555, debug=False, use_reloader=False)
+    except Exception as e:
+        print(f"Server error: {e}")
     
     
 #cloudflared tunnel --url http://localhost:5555
