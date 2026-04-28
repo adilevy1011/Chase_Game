@@ -118,12 +118,25 @@ def connect():
         window.ontimer(prompt_for_room, 100)
     else:
         print("Already in a room, skipping prompt")
+        # Re-join the room after reconnection
+        window.ontimer(rejoin_room, 100)
 
+def rejoin_room():
+    """Rejoin the current room after reconnection"""
+    global current_room
+    if current_room:
+        print(f"Rejoining room: {current_room}")
+        sio.emit("join_game", {"room": current_room})
 
 @sio.event
 def disconnect():
     """Handle unexpected disconnection"""
     print("Disconnected from server")
+    # Clear game state on disconnect
+    global players, latest_state, my_id
+    players = {}
+    latest_state = {}
+    my_id = None
 
 
 def prompt_for_room():
