@@ -18,7 +18,38 @@ game_rooms = {}
 # Track which room each player is in (socket_id -> room_name)
 player_rooms = {}
 
+#Web page for testing
+controller_page = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Game Controller</title>
+</head>
+<body>
+    <h1>Controller</h1>
 
+    <button onmousedown="send('w', true)" onmouseup="send('w', false)">W</button><br><br>
+    <button onmousedown="send('a', true)" onmouseup="send('a', false)">A</button>
+    <button onmousedown="send('s', true)" onmouseup="send('s', false)">S</button>
+    <button onmousedown="send('d', true)" onmouseup="send('d', false)">D</button>
+
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script>
+        const socket = io();
+
+        function send(key, state) {
+            let data = {w:false,a:false,s:false,d:false};
+            data[key] = state;
+            socket.emit("input", data);
+        }
+    </script>
+</body>
+</html>
+"""
+
+@app.route("/")
+def index():
+    return controller_page
 
 def update_player(player, acc, friction, right, left, top, bottom):
     # --- normalize input direction ---
