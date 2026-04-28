@@ -16,10 +16,12 @@ class bot(sprite):
         self.speed = self.CALM_SPEED
         self.time_of_rage = time.time()
         self.time_wait = random.randint(1,15)
-        # colors = ["blue", "green", "purple", "orange", "yellow"]
-        # shapes = ["arrow", "classic", "triangle", "turtle"]
-        # self.turt.color(random.choice(colors))
-        # self.turt.shape(random.choice(shapes))
+
+    def randomize_shape(self):
+        colors = ["blue", "green", "purple", "orange", "yellow"]
+        shapes = ["arrow", "classic", "triangle", "turtle"]
+        self.turt.color(random.choice(colors))
+        self.turt.shape(random.choice(shapes))
     
     def step(self, X: float, Y:float,screen_height,screen_width):
         if self.rage: 
