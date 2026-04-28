@@ -3,6 +3,7 @@ import main
 import client
 import sys
 import os
+from tkinter import messagebox, simpledialog
 
 
 def start_game():
@@ -12,9 +13,15 @@ def start_game():
 
 def start_multiplayer():
     global menu_root
+    messagebox.showinfo("Server connection", "To run on local host type: http://localhost:5555 or simply press cancel.\nOtherwise, use tunnel address for server.")
+    tunnel_address = simpledialog.askstring(
+            "Tunnel address", 
+            "Enter tunnel address:",
+            parent=menu_root
+        )
     menu_root.destroy()
     client.init_game()
-    client.run_game()
+    client.run_game(tunnel_address)
     
 def go_to_menu():
     python = sys.executable

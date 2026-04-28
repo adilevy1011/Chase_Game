@@ -68,7 +68,7 @@ def game_loop():
         # Update and broadcast for each room
         for room_name, room in list(game_rooms.items()):
             for player in list(room.players.values()):
-                update_player(player, acc=1.5, friction=0.9, right=372, left=-380, top=320, bottom=-315)
+                update_player(player, acc=1.5, friction=0.9, right=390, left=-395, top=295, bottom=-290)
             
             # Broadcast only to players in this room
             socketio.emit("state", room.players, room=room_name)
@@ -168,3 +168,6 @@ def on_disconnect():
 if __name__ == "__main__":
     socketio.start_background_task(game_loop)
     socketio.run(app, host="0.0.0.0", port=5555)
+    
+    
+#cloudflared tunnel --url http://localhost:5555

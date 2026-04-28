@@ -6,7 +6,7 @@ import sys
 import turtle
 from tkinter import messagebox, simpledialog
 import menu
-import time
+import threading
 
 sio = socketio.Client()
 
@@ -18,6 +18,10 @@ running = False
 players = {}
 latest_state = {}
 local_player = None
+already_joined = False
+previous_player_count = 0
+# Lock for thread-safe access to shared state
+state_lock = threading.Lock()
 
 def init_game():
     global window, instruction_turtle, players, latest_state, running, local_player
@@ -57,7 +61,7 @@ def init_game():
     instructions.speed(0)
     instructions.penup()
     instructions.goto(0, 280)
-    instructions.write("Waiting for room...", align="center", font=("Arial", 12, "normal"))
+    instructions.write("Hold on, waiting for room...", align="center", font=("Arial", 12, "normal"))
     instruction_turtle = instructions
 
 
@@ -70,35 +74,27 @@ keys = {
 
 def press_w(): 
     keys["w"] = True
-    #print("W pressed")
 
 def release_w(): 
     keys["w"] = False
-    #print("W released")
 
 def press_a(): 
     keys["a"] = True
-    #print("A pressed")
 
 def release_a(): 
     keys["a"] = False
-    #print("A released")
 
 def press_s(): 
     keys["s"] = True
-    #print("S pressed")
 
 def release_s(): 
     keys["s"] = False
-    #print("S released")
 
 def press_d(): 
     keys["d"] = True
-    #print("D pressed")
 
 def release_d(): 
     keys["d"] = False
-    #print("D released")
 
 def quit_game():
     global running, window
@@ -118,11 +114,21 @@ def quit_game():
 def connect():
     print("Connected to server")
     # Schedule the prompt on the main thread after a small delay
-    window.ontimer(prompt_for_room, 100)
+    if not already_joined:
+        window.ontimer(prompt_for_room, 100)
+    else:
+        print("Already in a room, skipping prompt")
+
+
+@sio.event
+def disconnect():
+    """Handle unexpected disconnection"""
+    print("Disconnected from server")
 
 
 def prompt_for_room():
     """Ask the user which room to join"""
+    global already_joined
     try:
         root = window.getcanvas().winfo_toplevel()
         room_name = simpledialog.askstring(
@@ -133,6 +139,7 @@ def prompt_for_room():
         
         if room_name:
             join_game_room(room_name.strip())
+            already_joined = True
         else:
             # User cancelled
             quit_game()
@@ -142,6 +149,7 @@ def prompt_for_room():
         room_name = input("Enter room name: ")
         if room_name:
             join_game_room(room_name.strip())
+            already_joined = True
         else:
             quit_game()
 
@@ -166,9 +174,10 @@ def your_id(data):
 @sio.event
 def joined_game(data):
     """Confirmation that we joined a room"""
-    global current_room, instruction_turtle, local_player, players
+    global current_room, instruction_turtle, local_player, players, previous_player_count
     current_room = data["room"]
     player_count = data["players"]
+    previous_player_count = player_count  # Initialize with first count
     
     print(f"Successfully joined room: {data['room']}")
     print(f"Players in room: {player_count}")
@@ -216,40 +225,72 @@ def joined_game(data):
 
 @sio.event
 def state(data):
-    global latest_state
-    latest_state = data
-
-    # Remove players that are no longer in the state
-    for pid in list(players.keys()):
-        if pid not in data:
-            players[pid].turt.hideturtle()
-            del players[pid]
+    global latest_state, instruction_turtle, current_room, previous_player_count
+    
+    # Use lock to safely update state
+    with state_lock:
+        latest_state = data.copy()
+        
+        # Remove players that are no longer in the state
+        for pid in list(players.keys()):
+            if pid not in data:
+                try:
+                    players[pid].turt.hideturtle()
+                    del players[pid]
+                except:
+                    pass
+    
+    # Update player count if it changed
+    current_player_count = len(data)
+    if current_player_count != previous_player_count and instruction_turtle and current_room:
+        previous_player_count = current_player_count
+        
+        instruction_turtle.clear()
+        instruction_turtle.penup()
+        instruction_turtle.goto(0, 280)
+        instruction_turtle.write(
+            f"Room: {current_room} | Players: {current_player_count}", 
+            align="center", 
+            font=("Arial", 12, "normal")
+        )
 
 
 def render_loop():
     if not running:
         return
     
-    if my_id is not None and latest_state and current_room is not None:
+    try:
+        # Use lock to safely read state
+        with state_lock:
+            current_state = latest_state.copy()
+        
+        if my_id is not None and current_state and current_room is not None:
 
-        for player_id, p in latest_state.items():
+            for player_id, p in current_state.items():
+                try:
+                    # own player
+                    if player_id == my_id:
+                        t = local_player
+                    else:
+                        if player_id not in players:
+                            players[player_id] = player()
+                            players[player_id].turt.color("red")
+                        t = players[player_id]
 
-            # own player
-            if player_id == my_id:
-                t = local_player
-            else:
-                if player_id not in players:
-                    players[player_id] = player()
-                    players[player_id].turt.color("red")  # Other players are red
-                t = players[player_id]
+                    t.turt.goto(p["x"], p["y"])
 
-            t.turt.goto(p["x"], p["y"])
+                    if p["vx"] != 0 or p["vy"] != 0:
+                        angle = math.degrees(math.atan2(p["vy"], p["vx"]))
+                        t.turt.setheading(angle)
+                except:
+                    # Skip if turtle was deleted
+                    pass
 
-            if p["vx"] != 0 or p["vy"] != 0:
-                angle = math.degrees(math.atan2(p["vy"], p["vx"]))
-                t.turt.setheading(angle)
-
-    window.update()
+        window.update()
+    except:
+        # Skip this frame if there's an error
+        pass
+    
     window.ontimer(render_loop, 16)
 
  
@@ -263,23 +304,41 @@ def send_input():
     window.ontimer(send_input, 50)
 
     
-def connect_to_server():
+def connect_to_server(tunnel_address):
     """Connect to the server"""
     try:
-        if len(sys.argv) <= 1:
-            sio.connect("http://localhost:5555")
-        else: 
-            sio.connect(sys.argv[1])
-    except socketio.exceptions.ConnectionError:
+        url = tunnel_address if tunnel_address else "http://localhost:5555"
+        print(f"Attempting to connect to: {url}")
+        
+        if tunnel_address == None:
+            sio.connect(
+                "http://localhost:5555",
+                transports=['websocket', 'polling']
+            )
+        else:
+            sio.connect(
+                tunnel_address,
+                transports=['websocket', 'polling']
+            )
+        
+        print("Connected successfully!")
+        
+    except socketio.exceptions.ConnectionError as e:
+        print(f"Connection error: {e}")
         if window:
             window.bye()
-        messagebox.showerror("Connection Error", "Couldn't connect to server")
+        messagebox.showerror("Connection Error", f"Couldn't connect to server:\n{str(e)}")
+        menu.go_to_menu()
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        if window:
+            window.bye()
+        messagebox.showerror("Error", f"Unexpected error:\n{str(e)}")
         menu.go_to_menu()
 
-
-def run_game():
+def run_game(tunnel_address):
     init_game()
-    connect_to_server()
+    connect_to_server(tunnel_address)
     turtle.mainloop()
     
 if __name__=="__main__":
