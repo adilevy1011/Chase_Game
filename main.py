@@ -46,12 +46,30 @@ def init_game():
     pen.hideturtle()
     pen.penup()
 
+    window.listen()
+    window.onkey(spawn_bot, "Up")
+    
+    # Add these for player movement
+    window.onkeypress(lambda: set_move("w", True), "w")
+    window.onkeyrelease(lambda: set_move("w", False), "w")
+    window.onkeypress(lambda: set_move("s", True), "s")
+    window.onkeyrelease(lambda: set_move("s", False), "s")
+    window.onkeypress(lambda: set_move("a", True), "a")
+    window.onkeyrelease(lambda: set_move("a", False), "a")
+    window.onkeypress(lambda: set_move("d", True), "d")
+    window.onkeyrelease(lambda: set_move("d", False), "d")
+    window.onkeypress(lambda: set_move("Escape", True), "Escape")
+    window.onkeyrelease(lambda: set_move("Escape", False), "Escape")
     # Position the label
     pen.goto(left, top-10)
     if BOTS_ON:
         window.listen()
         window.onkey(spawn_bot, "Up")
+    
+pressed_keys = {"w": False, "s": False, "a": False, "d": False,"Escape":False}
 
+def set_move(key, state):
+    pressed_keys[key] = state
 def add_gameover_screen():
     root = tk.Tk()
     root.title("Game Over")
@@ -85,13 +103,13 @@ def get_distance(x1,y1,x2,y2):
 def game_loop():
     #=====PLAYER==================================================================================================================
     turX,turY = player.turt.pos()
-    if keyboard.is_pressed('w'):
+    if pressed_keys['w']:
         player.dy += 1
-    if keyboard.is_pressed('s'):
+    if pressed_keys['s']:
         player.dy -= 1
-    if keyboard.is_pressed('a'):
+    if pressed_keys['a']:
         player.dx -= 1
-    if keyboard.is_pressed('d'):
+    if pressed_keys['d']:
         player.dx += 1
 
     player.update(right,left,bottom,top)
@@ -116,7 +134,7 @@ def game_loop():
         
             
     #Close program
-    if keyboard.is_pressed('Escape'):
+    if pressed_keys['Escape']:
         window.bye()
         menu.go_to_menu()
         
