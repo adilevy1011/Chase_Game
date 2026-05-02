@@ -19,7 +19,7 @@ socketio = SocketIO(
     app, 
     cors_allowed_origins="*",
     async_mode='threading',
-    transports=['websocket', 'polling'],  # Try websocket first, fallback to polling
+    transports=['websocket'],  
     ping_timeout=60,  # Increased from 120
     ping_interval=15,  # More frequent pings (was 25)
     logger=False, 
