@@ -625,7 +625,7 @@ def connect_to_server(tunnel_address):
 
         sio.connect(
             url,
-            wait_timeout=10
+            wait_timeout=30
         )
 
         print("Connected successfully!")
