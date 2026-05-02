@@ -114,6 +114,7 @@ The game supports three connection methods:
 #### Option 2: Cloudflare Tunnel (Recommended for remote play)
 - **Cost**: Free
 - **Purpose**: Secure remote access across the internet
+- **Note**: Cloudflare tunnels can be unstable and may drop connections frequently. This is why a public server was deployed as an alternative. Expect disconnections when using Cloudflare - the game includes automatic reconnection, but it may interrupt gameplay.
 - **How to use**:
   1. Start the server: `python server.py`
   2. In another terminal, create tunnel: `cloudflared tunnel --url http://localhost:5555`
