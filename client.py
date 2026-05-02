@@ -246,7 +246,6 @@ def attempt_reconnect():
             print(f"Reconnecting to server...")
             sio.connect(
                 url,
-                transports=['websocket'],
                 wait_timeout=10
             )
             print("Reconnected successfully!")
@@ -626,7 +625,6 @@ def connect_to_server(tunnel_address):
 
         sio.connect(
             url,
-            transports=['websocket'],
             wait_timeout=10
         )
 
