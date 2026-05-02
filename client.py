@@ -242,11 +242,12 @@ def attempt_reconnect():
     """Attempt to reconnect to the server"""
     if connection_state["reconnecting"]:
         try:
-            url = "http://147.182.235.138:80"  # Default localhost
+            url = "http://147.182.235.138.nip.io:80"  # Default localhost
             print(f"Reconnecting to server...")
             sio.connect(
                 url,
-                wait_timeout=10
+                transports=['polling'],
+                wait_timeout=30
             )
             print("Reconnected successfully!")
         except Exception as e:
@@ -620,11 +621,12 @@ def connect_to_server(tunnel_address):
     }
 
     try:
-        url = tunnel_address if tunnel_address else "http://147.182.235.138:80"
+        url = tunnel_address if tunnel_address else "http://147.182.235.138.nip.io:80"
         print(f"Attempting to connect to: {url}")
 
         sio.connect(
             url,
+            transports=['polling'],
             wait_timeout=30
         )
 
