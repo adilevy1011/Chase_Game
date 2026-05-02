@@ -13,7 +13,7 @@ class player(sprite):
         self.vx = 0
         self.vy = 0
         
-        self.acc = 1
+        self.acc = 1.5
         self.friction = 0.9
         
         self.dx = 0

@@ -4,8 +4,8 @@ import math
 import time
 from sprite import sprite
 class bot(sprite):
-    CALM_SPEED = 1.5
-    RAGE_SPEED = 3
+    CALM_SPEED = 2
+    RAGE_SPEED = 4
     def __init__(self, id):
         super().__init__()
         self.ID = id
