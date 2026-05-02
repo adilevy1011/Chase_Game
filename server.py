@@ -135,7 +135,7 @@ def broadcast_rooms_update():
             "name": room_name,
             "players": len(room.players)
         })
-    socketio.emit("rooms_list", rooms_list, broadcast=True)
+    socketio.emit("rooms_list", rooms_list) 
 
 @socketio.on("ping")
 def on_ping():
