@@ -1,5 +1,4 @@
 import turtle
-import keyboard
 import tkinter as tk
 import sys
 from bot import bot

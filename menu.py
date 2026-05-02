@@ -3,7 +3,7 @@ import main
 import client
 import sys
 import os
-from tkinter import messagebox, simpledialog
+from tkinter import simpledialog
 import pyautogui
 
 def start_game():

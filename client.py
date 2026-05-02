@@ -2,13 +2,12 @@
 import socketio
 import math
 from player import player
-import sys
 import turtle
 from tkinter import messagebox, simpledialog
 import tkinter as tk
 import menu
 import threading
-import time
+
 sio = socketio.Client()
 
 my_id = None

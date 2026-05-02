@@ -1,7 +1,6 @@
-import turtle
 import math
-import random
 from sprite import sprite
+
 class player(sprite):
     
     def __init__(self):
