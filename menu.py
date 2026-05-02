@@ -20,7 +20,6 @@ def start_multiplayer():
             parent=menu_root
         )
     menu_root.destroy()
-    client.init_game()
     client.run_game(tunnel_address)
     
 def go_to_menu():
