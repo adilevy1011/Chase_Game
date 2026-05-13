@@ -625,7 +625,7 @@ def connect_to_server(tunnel_address):
 
         sio.connect(
             url,
-            transports=['polling'],
+            transports=['websocket','polling'],
             wait_timeout=30
         )
 
