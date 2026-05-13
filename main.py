@@ -77,7 +77,9 @@ def add_gameover_screen():
     label = tk.Label(root,text = "Game Over",font=("Arial", 40, "bold"),bg='red')
     label.place(x=200,y=200,width=400,height=100)
     killerLabel = tk.Label(root,text=f"Killed by bot number {killer.ID}",font=("Arial", 15),bg='red')
-    killerLabel.pack(expand=True)
+    killerLabel.place(x=200,y=350,width=400,height=50)
+    howLongLabel = tk.Label(root,text=f"You survived for {int(player.time_alive)} seconds",font=("Arial", 12),bg='red')
+    howLongLabel.place(x=200,y=400,width=400,height=50)
     restart_btn = tk.Button(text="Restart game",command=restart_game)
     restart_btn.place(x=325,y=450,width=100,height=35)
     qt_btn = tk.Button(text="Back to menu",command=menu.go_to_menu)
@@ -143,8 +145,8 @@ def game_loop():
     pen.write(f"number of bots: {len(bots)}",  font=("Verdana", 9))
     
     #create time stamp of how long the player has been alive
-    pen.goto(right-150, top-10)
-    pen.write(f"Time alive: {int(player.time_alive)} seconds", font=("Verdana", 9))
+    pen.goto(right-200, top-30)
+    pen.write(f"Time alive: {int(player.time_alive)} seconds", font=("Verdana", 11))
     
     window.update()
     window.ontimer(game_loop, 16) 
