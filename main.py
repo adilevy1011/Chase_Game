@@ -121,7 +121,6 @@ def game_loop():
         if bt.rage and get_distance(bx,by,turX,turY) < 5:
             angle = player.find_angle_to_player_view(bx,by)
             #angle = (angle + 180) % 360 - 180
-            print("angle:", angle, "heading:", player.turt.heading())
             if -90 < angle < 90:
                 bt.turt.hideturtle()
                 bots.pop(index)
