@@ -46,7 +46,7 @@ controller_page = """
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Game Controller</title>
+  <title>Arrow Chase Web Map</title>
   <style>
     body { font-family: Arial, sans-serif; color:#111827; margin:0; padding:20px; background:#eef2ff; }
     .container { max-width:980px; margin:0 auto; }
@@ -327,23 +327,38 @@ controller_page = """
         ctx.stroke();
       }
 
+      const world = {
+        left: -395,
+        right: 390,
+        top: 295,
+        bottom: -290
+      };
+      const worldWidth = world.right - world.left;
+      const worldHeight = world.top - world.bottom;
+      const margin = 40;
+      const scale = Math.min((width - margin * 2) / worldWidth, (height - margin * 2) / worldHeight);
+      const originX = width / 2;
+      const originY = height / 2;
+      const boxWidth = worldWidth * scale;
+      const boxHeight = worldHeight * scale;
+
       ctx.strokeStyle = '#60a5fa';
       ctx.lineWidth = 3;
-      ctx.strokeRect(40, 40, width - 80, height - 80);
+      ctx.strokeRect((width - boxWidth) / 2, (height - boxHeight) / 2, boxWidth, boxHeight);
       ctx.fillStyle = 'rgba(59, 130, 246, 0.08)';
-      ctx.fillRect(40, 40, width - 80, height - 80);
+      ctx.fillRect((width - boxWidth) / 2, (height - boxHeight) / 2, boxWidth, boxHeight);
 
       ctx.fillStyle = '#cbd5e1';
       ctx.font = '13px Arial';
-      ctx.fillText('Arena bounds: 390 x 295', 50, 60);
+      ctx.fillText('World bounds: ' + worldWidth + ' x ' + worldHeight, 50, 60);
       ctx.fillText('Center = (0,0)', width - 150, 60);
-      ctx.fillText('Use the controls or keyboard to move this player in real time.', 50, height - 20);
+      ctx.fillText('Scaled to fit the full world.', 50, height - 20);
 
       Object.entries(players).forEach(([id, player]) => {
         if (!player || typeof player.x !== 'number' || typeof player.y !== 'number') return;
-        const px = width / 2 + player.x;
-        const py = height / 2 - player.y;
-        const radius = 18;
+        const px = originX + player.x * scale;
+        const py = originY - player.y * scale;
+        const radius = 14;
         ctx.beginPath();
         ctx.fillStyle = id === myId ? '#22c55e' : '#3b82f6';
         ctx.strokeStyle = '#e2e8f0';
@@ -355,8 +370,6 @@ controller_page = """
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 12px Arial';
         ctx.fillText(id === myId ? 'You' : id.slice(0, 4), px - 18, py - 22);
-        ctx.font = '11px Arial';
-        ctx.fillText('x:' + Math.round(player.x) + ' y:' + Math.round(player.y), px - 18, py + 28);
       });
 
       if (!Object.keys(players).length) {
