@@ -139,7 +139,12 @@ def game_loop():
         
     # Write the label text
     pen.clear()
+    pen.goto(left, top-10)
     pen.write(f"number of bots: {len(bots)}",  font=("Verdana", 9))
+    
+    #create time stamp of how long the player has been alive
+    pen.goto(right-150, top-10)
+    pen.write(f"Time alive: {int(player.time_alive)} seconds", font=("Verdana", 9))
     
     window.update()
     window.ontimer(game_loop, 16) 

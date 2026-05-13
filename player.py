@@ -1,6 +1,6 @@
 import math
 from sprite import sprite
-
+import time 
 class player(sprite):
     
     def __init__(self):
@@ -11,6 +11,7 @@ class player(sprite):
         # self.turt.shape(random.choice(shapes))
         self.vx = 0
         self.vy = 0
+        self.time_created = time.time()
         
         self.acc = 1.5
         self.friction = 0.9
@@ -21,6 +22,7 @@ class player(sprite):
     def update(self,right,left,bottom,top):
         length = math.hypot(self.dx, self.dy)
 
+        self.time_alive = time.time() - self.time_created
         if length != 0:
             self.dx /= length
             self.dy /= length
