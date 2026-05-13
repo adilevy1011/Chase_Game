@@ -43,28 +43,333 @@ player_rooms = {}
 #Web page for testing
 controller_page = """
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Game Controller</title>
+  <meta charset="utf-8" />
+  <title>Game Controller</title>
+  <style>
+    body { font-family: Arial, sans-serif; color:#111827; margin:0; padding:20px; background:#eef2ff; }
+    .container { max-width:980px; margin:0 auto; }
+    h1, h2 { margin:0 0 12px 0; }
+    .panel { background:#ffffff; border-radius:20px; box-shadow:0 18px 45px rgba(15, 23, 42, 0.12); padding:24px; margin-bottom:20px; }
+    .controls { display:flex; flex-wrap:wrap; gap:12px; justify-content:center; margin-top:14px; }
+    button { min-width:72px; min-height:72px; border:none; border-radius:18px; background:#2563eb; color:#ffffff; font-size:1rem; font-weight:700; cursor:pointer; transition:transform .12s ease, background .12s ease; }
+    button:hover { background:#1d4ed8; transform:translateY(-1px); }
+    button.active { background:#0f172a; }
+    input { padding:12px 14px; border:1px solid #cbd5e1; border-radius:14px; width:260px; }
+    .status { display:flex; flex-wrap:wrap; gap:10px; margin-top:16px; }
+    .status span { background:#e0f2fe; padding:10px 14px; border-radius:14px; font-size:.95rem; }
+    #canvas { width:100%; height:auto; border-radius:18px; background:#0f172a; display:block; }
+    .preview-row { display:flex; flex-wrap:wrap; gap:18px; align-items:flex-start; }
+    .players-panel { min-width:260px; max-width:320px; flex:1; }
+    .players-panel h3 { margin-top:0; }
+    .players-list { list-style:none; padding:0; margin:0; display:grid; gap:10px; }
+    .players-list li { background:#f8fafc; border:1px solid #e2e8f0; border-radius:16px; padding:12px 14px; }
+    .players-list span { display:block; color:#475569; font-size:.88rem; margin-top:6px; }
+    .rooms-list { list-style:none; padding:0; margin:0; display:grid; gap:10px; }
+    .rooms-list li { display:flex; justify-content:space-between; align-items:center; padding:14px 16px; border-radius:16px; background:#f8fafc; border:1px solid #e2e8f0; }
+    .rooms-list strong { font-size:1rem; }
+    .footer { color:#475569; font-size:.95rem; margin-top:10px; }
+  </style>
 </head>
 <body>
-    <h1>Controller</h1>
+  <div class="container">
+    <div class="panel">
+      <h1>Chase Game Controller</h1>
+      <p>Join a room, send WASD commands, and watch player positions update live on the mini-map.</p>
 
-    <button onmousedown="send('w', true)" onmouseup="send('w', false)">W</button><br><br>
-    <button onmousedown="send('a', true)" onmouseup="send('a', false)">A</button>
-    <button onmousedown="send('s', true)" onmouseup="send('s', false)">S</button>
-    <button onmousedown="send('d', true)" onmouseup="send('d', false)">D</button>
+      <div class="status">
+        <span id="status">Disconnected</span>
+        <span id="room-status">Room: None</span>
+        <span id="player-status">Player: -</span>
+      </div>
 
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <script>
-        const socket = io();
+      <div style="margin-top:18px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+        <input id="room-name" placeholder="Enter room name" />
+        <button id="join-button">Join room</button>
+      </div>
+    </div>
 
-        function send(key, state) {
-            let data = {w:false,a:false,s:false,d:false};
-            data[key] = state;
-            socket.emit("input", data);
-        }
-    </script>
+    <div class="panel">
+      <h2>Available rooms</h2>
+      <ul id="rooms" class="rooms-list">
+        <li>Loading rooms…</li>
+      </ul>
+    </div>
+
+    <div class="panel">
+      <h2>Live controller</h2>
+      <div class="preview-row">
+        <div class="controls" style="flex:1; min-width:220px;">
+          <button id="up" data-key="w">W</button>
+          <button id="left" data-key="a">A</button>
+          <button id="down" data-key="s">S</button>
+          <button id="right" data-key="d">D</button>
+          <p style="margin-top:12px; color:#475569;">Use WASD or arrow keys to move. Click anywhere on the page to focus, and buttons also work on mobile via touch.</p>
+        </div>
+        <div class="players-panel">
+          <h3>Room players</h3>
+          <ul id="players" class="players-list">
+            <li>No player data yet</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Live game preview</h2>
+      <canvas id="canvas" width="880" height="400"></canvas>
+    </div>
+
+    <div class="footer">Interactive demo page served by Flask + Socket.IO.</div>
+  </div>
+
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const statusEl = document.getElementById('status');
+    const roomStatusEl = document.getElementById('room-status');
+    const playerStatusEl = document.getElementById('player-status');
+    const roomsEl = document.getElementById('rooms');
+    const roomInput = document.getElementById('room-name');
+    const joinButton = document.getElementById('join-button');
+
+    let currentRoom = null;
+    let myId = null;
+    let players = {};
+    const inputState = { w:false, a:false, s:false, d:false };
+
+    const playersEl = document.getElementById('players');
+    const socket = io();
+
+    socket.on('connect', () => {
+      statusEl.textContent = 'Connected';
+      statusEl.style.background = '#dcfce7';
+      statusEl.style.color = '#166534';
+      socket.emit('get_rooms');
+    });
+
+    socket.on('disconnect', () => {
+      statusEl.textContent = 'Disconnected';
+      statusEl.style.background = '';
+      statusEl.style.color = '';
+      roomStatusEl.textContent = 'Room: None';
+      playerStatusEl.textContent = 'Player: -';
+      currentRoom = null;
+      players = {};
+      updatePlayersPanel();
+      drawMap();
+    });
+
+    socket.on('rooms_list', (rooms) => {
+      renderRooms(rooms);
+    });
+
+    socket.on('joined_game', (data) => {
+      currentRoom = data.room;
+      roomStatusEl.textContent = 'Room: ' + currentRoom + ' (' + data.players + ' players)';
+      setStatus('Joined ' + currentRoom);
+      socket.emit('get_rooms');
+    });
+
+    socket.on('your_id', (id) => {
+      myId = id;
+      playerStatusEl.textContent = 'Player: ' + id.slice(0, 6);
+    });
+
+    socket.on('state', (roomPlayers) => {
+      players = roomPlayers;
+      updatePlayersPanel();
+      drawMap();
+    });
+
+    function renderRooms(rooms) {
+      if (!Array.isArray(rooms) || rooms.length === 0) {
+        roomsEl.innerHTML = '<li>No active rooms yet</li>';
+        return;
+      }
+      roomsEl.innerHTML = '';
+      rooms.forEach(room => {
+        const item = document.createElement('li');
+        item.innerHTML = '<strong>' + escapeHtml(room.name) + '</strong> <span>' + room.players + ' player' + (room.players === 1 ? '' : 's') + '</span>';
+        const joinBtn = document.createElement('button');
+        joinBtn.textContent = 'Join';
+        joinBtn.addEventListener('click', () => {
+          roomInput.value = room.name;
+          joinRoom();
+        });
+        item.appendChild(joinBtn);
+        roomsEl.appendChild(item);
+      });
+    }
+
+    function joinRoom() {
+      const roomName = roomInput.value.trim();
+      if (!roomName) {
+        setStatus('Enter a room name first', true);
+        return;
+      }
+      socket.emit('join_game', { room: roomName });
+    }
+
+    function setStatus(message, isError = false) {
+      statusEl.textContent = message;
+      statusEl.style.background = isError ? '#fee2e2' : '#e0f2fe';
+      statusEl.style.color = isError ? '#b91c1c' : '#0c4a6e';
+    }
+
+    function sendInput() {
+      socket.emit('input', { ...inputState });
+      updateButtonStates();
+    }
+
+    function sendInputWhileActive() {
+      if (Object.values(inputState).some(Boolean)) {
+        sendInput();
+      }
+    }
+
+    function updateButtonStates() {
+      ['w','a','s','d'].forEach(key => {
+        const button = document.querySelector('[data-key="' + key + '"]');
+        if (button) button.classList.toggle('active', inputState[key]);
+      });
+    }
+
+    function updatePlayersPanel() {
+      const entries = Object.entries(players || {});
+      if (!entries.length) {
+        playersEl.innerHTML = '<li>No player data yet</li>';
+        return;
+      }
+      playersEl.innerHTML = '';
+      entries.forEach(([id, player]) => {
+        const item = document.createElement('li');
+        const name = id === myId ? 'You' : 'Player ' + id.slice(0,4);
+        item.innerHTML = '<strong>' + escapeHtml(name) + '</strong>' +
+          '<span>Position: ' + Math.round(player.x) + ', ' + Math.round(player.y) + '</span>' +
+          '<span>Velocity: ' + Math.round(player.vx || 0) + ', ' + Math.round(player.vy || 0) + '</span>';
+        playersEl.appendChild(item);
+      });
+    }
+
+    function escapeHtml(text) {
+      return text.replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":"&#39;" })[char]);
+    }
+
+    joinButton.addEventListener('click', joinRoom);
+
+    document.body.tabIndex = 0;
+    document.body.addEventListener('click', () => document.body.focus());
+
+    ['up','left','down','right'].forEach(id => {
+      const button = document.getElementById(id);
+      const key = button.dataset.key;
+      button.addEventListener('mousedown', () => { inputState[key] = true; sendInput(); });
+      button.addEventListener('mouseup', () => { inputState[key] = false; sendInput(); });
+      button.addEventListener('touchstart', (event) => { event.preventDefault(); inputState[key] = true; sendInput(); }, { passive:false });
+      button.addEventListener('touchend', (event) => { event.preventDefault(); inputState[key] = false; sendInput(); });
+    });
+
+    window.addEventListener('keydown', (event) => {
+      const key = normalizeKey(event.key);
+      if (key && !inputState[key]) {
+        inputState[key] = true;
+        sendInput();
+      }
+    });
+
+    window.addEventListener('keyup', (event) => {
+      const key = normalizeKey(event.key);
+      if (key && inputState[key]) {
+        inputState[key] = false;
+        sendInput();
+      }
+    });
+
+    window.addEventListener('blur', () => {
+      ['w','a','s','d'].forEach(key => inputState[key] = false);
+      sendInput();
+    });
+
+    let lastSentInput = JSON.stringify(inputState);
+
+    function normalizeKey(key) {
+      key = key.toLowerCase();
+      if (key === 'arrowup') return 'w';
+      if (key === 'arrowdown') return 's';
+      if (key === 'arrowleft') return 'a';
+      if (key === 'arrowright') return 'd';
+      if (['w','a','s','d'].includes(key)) return key;
+      return null;
+    }
+
+    function drawMap() {
+      const width = canvas.width;
+      const height = canvas.height;
+      ctx.clearRect(0, 0, width, height);
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, width, height);
+
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 1;
+      for (let x = 0; x <= width; x += 80) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+        ctx.stroke();
+      }
+      for (let y = 0; y <= height; y += 80) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+      }
+
+      ctx.strokeStyle = '#60a5fa';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(40, 40, width - 80, height - 80);
+      ctx.fillStyle = 'rgba(59, 130, 246, 0.08)';
+      ctx.fillRect(40, 40, width - 80, height - 80);
+
+      ctx.fillStyle = '#cbd5e1';
+      ctx.font = '13px Arial';
+      ctx.fillText('Arena bounds: 390 x 295', 50, 60);
+      ctx.fillText('Center = (0,0)', width - 150, 60);
+      ctx.fillText('Use the controls or keyboard to move this player in real time.', 50, height - 20);
+
+      Object.entries(players).forEach(([id, player]) => {
+        if (!player || typeof player.x !== 'number' || typeof player.y !== 'number') return;
+        const px = width / 2 + player.x;
+        const py = height / 2 - player.y;
+        const radius = 18;
+        ctx.beginPath();
+        ctx.fillStyle = id === myId ? '#22c55e' : '#3b82f6';
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.lineWidth = 2;
+        ctx.arc(px, py, radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 12px Arial';
+        ctx.fillText(id === myId ? 'You' : id.slice(0, 4), px - 18, py - 22);
+        ctx.font = '11px Arial';
+        ctx.fillText('x:' + Math.round(player.x) + ' y:' + Math.round(player.y), px - 18, py + 28);
+      });
+
+      if (!Object.keys(players).length) {
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '18px Arial';
+        ctx.fillText('Waiting for players...', width / 2 - 110, height / 2);
+      }
+    }
+
+    drawMap();
+    setInterval(sendInputWhileActive, 70);
+    setInterval(() => socket.emit('get_rooms'), 3000);
+  </script>
 </body>
 </html>
 """
